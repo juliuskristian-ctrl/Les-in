@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Guru - LES-IN</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .card-custom { border-radius: 15px; border: none; }
+        .bg-guru { background-color: #f8f9fa; min-height: 100vh; }
+        .profile-img-dash { width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #0d6efd; }
+    </style>
+</head>
+<body class="bg-guru">
+
+<nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/dashboard-guru">LES-IN <small class="fw-normal">| Dashboard Guru</small></a>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-white small" th:text="${user != null ? 'Halo, ' + user.nama : 'Guru'}">Guru</span>
+            <a href="/logout" class="btn btn-danger btn-sm fw-bold">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-1">
+            <img th:src="${user.fotoUrl}" class="profile-img-dash shadow-sm" alt="Profile">
+        </div>
+        <div class="col-md-7">
+            <h2 class="fw-bold mb-0">Selamat Datang, <span th:text="${user.nama}">Guru</span>!</h2>
+            <p class="text-muted mb-0">Kelola mata pelajaran dan konfirmasi pesanan murid.</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-primary fw-bold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#editProfileModal">⚙️ Edit Profil</button>
+        </div>
+    </div>
+
+    <div class="card card-custom shadow-sm p-4 mt-4">
+        <h4 class="fw-bold mb-4">📩 Daftar Pesanan Murid</h4>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                <tr>
+                    <th>Nama Murid</th>
+                    <th>Waktu Pesan</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="pesan : ${daftarPesanan}">
+                    <td class="fw-bold text-primary" th:text="${pesan.namaMurid}">Murid</td>
+                    <td th:text="${#temporals.format(pesan.waktuPesan, 'dd-MM-yyyy HH:mm')}">Waktu</td>
+                    <td>
+                            <span th:text="${pesan.status}"
+                                  th:classappend="${pesan.status == 'DISETUJUI' ? 'bg-success' : (pesan.status == 'DITOLAK' ? 'bg-danger' : 'bg-warning text-dark')}"
+                                  class="badge">STATUS</span>
+                    </td>
+                    <td>
+                        <div th:if="${pesan.status == 'MENUNGGU'}" class="d-flex gap-2">
+                            <form th:action="@{'/konfirmasi-booking/' + ${pesan.id} + '/DISETUJUI'}" method="post">
+                                <button type="submit" class="btn btn-success btn-sm fw-bold">Terima</button>
+                            </form>
+                            <form th:action="@{'/konfirmasi-booking/' + ${pesan.id} + '/DITOLAK'}" method="post">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Tolak</button>
+                            </form>
+                        </div>
+                        <span th:unless="${pesan.status == 'MENUNGGU'}" class="text-muted small italic">Selesai diproses</span>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(daftarPesanan)}">
+                    <td colspan="4" class="text-center py-4 text-muted">Belum ada murid yang memesan.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 15px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Update Profil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form th:action="@{/update-profile}" th:object="${user}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3"><label class="fw-bold">Nama</label><input type="text" name="nama" th:value="${user.nama}" class="form-control" required></div>
+                    <div class="mb-3"><label class="fw-bold">URL Foto</label><input type="text" name="fotoUrl" th:value="${user.fotoUrl}" class="form-control"></div>
+                    <div class="mb-3"><label class="fw-bold">WhatsApp</label><input type="text" name="noWhatsapp" th:value="${user.noWhatsapp}" class="form-control" required></div>
+                    <div class="mb-3"><label class="fw-bold">Mapel</label><input type="text" name="mataPelajaran" th:value="${user.mataPelajaran}" class="form-control" required></div>
+                    <div class="mb-3"><label class="fw-bold">Bio</label><textarea name="bio" class="form-control" rows="3" th:text="${user.bio}"></textarea></div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary fw-bold w-100">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
