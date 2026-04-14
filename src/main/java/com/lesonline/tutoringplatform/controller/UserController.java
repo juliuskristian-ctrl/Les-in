@@ -7,15 +7,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Controller
 public class UserController {
 
     @Autowired private UserRepository userRepository;
     @Autowired private BookingRepository bookingRepository;
+
+    private final String UPLOAD_DIR = System.getProperty("user.dir") + "/src/main/resources/static/uploads/";
 
     @GetMapping("/register")
     public String showRegistrationForm(Model model) {
@@ -40,19 +47,38 @@ public class UserController {
         Optional<User> user = userRepository.findByEmailAndPassword(email, password);
         if (user.isPresent()) {
             session.setAttribute("loggedInUser", user.get());
-            return user.get().getRole().equals("GURU") ? "redirect:/dashboard-guru" : "redirect:/guru";
+            return user.get().getRole().equals("GURU") ? "redirect:/dashboard-guru" : "redirect:/dashboard-murid";
         }
         model.addAttribute("error", "Email atau Password salah!");
         return "login";
     }
 
-    @GetMapping("/guru")
-    public String listGuru(Model model, HttpSession session) {
+    @GetMapping("/dashboard-murid")
+    public String dashboardMurid(HttpSession session, Model model) {
         User loggedInUser = (User) session.getAttribute("loggedInUser");
         if (loggedInUser == null) return "redirect:/login";
+
+        List<Booking> riwayat = bookingRepository.findByIdMurid(loggedInUser.getId());
         model.addAttribute("user", loggedInUser);
-        model.addAttribute("daftarGuru", userRepository.findByRole("GURU"));
-        model.addAttribute("pesananSaya", bookingRepository.findByIdMurid(loggedInUser.getId()));
+        model.addAttribute("riwayat", riwayat);
+        return "dashboard-murid";
+    }
+
+    @GetMapping("/guru")
+    public String listGuru(Model model, HttpSession session, @RequestParam(required = false) String search) {
+        User loggedInUser = (User) session.getAttribute("loggedInUser");
+        if (loggedInUser == null) return "redirect:/login";
+
+        List<User> daftarGuru;
+        if (search != null && !search.isEmpty()) {
+            daftarGuru = userRepository.findByRoleAndMataPelajaranContainingIgnoreCase("GURU", search);
+        } else {
+            daftarGuru = userRepository.findByRole("GURU");
+        }
+
+        model.addAttribute("user", loggedInUser);
+        model.addAttribute("daftarGuru", daftarGuru);
+        model.addAttribute("search", search);
         return "daftar-guru";
     }
 
@@ -77,15 +103,31 @@ public class UserController {
             b.setNoWhatsappGuru(guru.getNoWhatsapp());
             bookingRepository.save(b);
         }
-        return "redirect:/guru?success";
+        return "redirect:/dashboard-murid?success";
+    }
+
+    @PostMapping("/rate-booking/{id}")
+    public String rateBooking(@PathVariable Long id, @RequestParam Integer rating, @RequestParam String ulasan) {
+        bookingRepository.findById(id).ifPresent(b -> {
+            b.setRating(rating);
+            b.setUlasan(ulasan);
+            b.setStatus("SELESAI");
+            bookingRepository.save(b);
+        });
+        return "redirect:/dashboard-murid?rated";
     }
 
     @GetMapping("/dashboard-guru")
     public String showDashboardGuru(HttpSession session, Model model) {
         User loggedInUser = (User) session.getAttribute("loggedInUser");
         if (loggedInUser == null || !loggedInUser.getRole().equals("GURU")) return "redirect:/login";
+
+        List<Booking> listPesanan = bookingRepository.findByIdGuru(loggedInUser.getId());
+        long jumlahMenunggu = listPesanan.stream().filter(b -> b.getStatus().equals("MENUNGGU")).count();
+
         model.addAttribute("user", loggedInUser);
-        model.addAttribute("daftarPesanan", bookingRepository.findByIdGuru(loggedInUser.getId()));
+        model.addAttribute("daftarPesanan", listPesanan);
+        model.addAttribute("notif", jumlahMenunggu);
         return "dashboard-guru";
     }
 
@@ -98,15 +140,48 @@ public class UserController {
         return "redirect:/dashboard-guru?statusUpdated";
     }
 
+    @PostMapping("/isi-link-zoom/{id}")
+    public String isiLinkZoom(@PathVariable Long id, @RequestParam String linkZoom) {
+        bookingRepository.findById(id).ifPresent(b -> {
+            b.setLinkZoom(linkZoom);
+            bookingRepository.save(b);
+        });
+        return "redirect:/dashboard-guru?linkUpdated";
+    }
+
+    // FITUR BARU: GURU MENYELESAIKAN SESI SECARA KESELURUHAN
+    @PostMapping("/selesaikan-sesi/{id}")
+    public String selesaikanSesi(@PathVariable Long id) {
+        bookingRepository.findById(id).ifPresent(b -> {
+            b.setStatus("SELESAI");
+            bookingRepository.save(b);
+        });
+        return "redirect:/dashboard-guru?sesiSelesai";
+    }
+
     @PostMapping("/update-profile")
-    public String updateProfile(@ModelAttribute("user") User updatedUser, HttpSession session) {
+    public String updateProfile(@ModelAttribute("user") User updatedUser,
+                                @RequestParam("file") MultipartFile file,
+                                HttpSession session) {
         User currentUser = (User) session.getAttribute("loggedInUser");
         if (currentUser != null) {
             currentUser.setNama(updatedUser.getNama());
             currentUser.setMataPelajaran(updatedUser.getMataPelajaran());
             currentUser.setBio(updatedUser.getBio());
             currentUser.setNoWhatsapp(updatedUser.getNoWhatsapp());
-            currentUser.setFotoUrl(updatedUser.getFotoUrl());
+
+            if (!file.isEmpty()) {
+                try {
+                    Path pathDir = Paths.get(UPLOAD_DIR);
+                    if (!Files.exists(pathDir)) Files.createDirectories(pathDir);
+                    String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+                    Path filePath = pathDir.resolve(fileName);
+                    Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+                    currentUser.setFotoUrl("/uploads/" + fileName);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
             userRepository.save(currentUser);
             session.setAttribute("loggedInUser", currentUser);
         }

@@ -19,6 +19,13 @@ public class Booking {
     private String mataPelajaran;
     private String noWhatsappGuru;
 
+    // FITUR BARU
+    private String status = "MENUNGGU"; // MENUNGGU, DISETUJUI, DITOLAK, SELESAI
+    private String linkZoom;
+    private String catatanGuru;
+    private Integer rating; // 1-5
+    @Column(columnDefinition = "TEXT")
+    private String ulasan;
+
     private LocalDateTime waktuPesan = LocalDateTime.now();
-    private String status = "MENUNGGU";
 }

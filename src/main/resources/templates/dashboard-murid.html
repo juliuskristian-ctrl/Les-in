@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Murid - LES-IN</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .card-custom { border-radius: 15px; border: none; }
+        .bg-murid { background-color: #f0f2f5; min-height: 100vh; }
+        .session-active-card { border-left: 5px solid #0d6efd; transition: 0.3s; }
+        .session-active-card:hover { transform: translateY(-5px); }
+        .btn-rounded { border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-murid">
+
+<nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/guru">LES-IN</a>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-white small" th:text="${user != null ? 'Halo, ' + user.nama : 'User'}">User</span>
+            <a href="/logout" class="btn btn-danger btn-sm fw-bold btn-rounded">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary">Dashboard Belajarku</h3>
+        <a href="/guru" class="btn btn-primary fw-bold shadow-sm btn-rounded">+ Cari Guru Baru</a>
+    </div>
+
+    <h5 class="fw-bold mb-3 text-secondary">📖 Sesi Belajar Berjalan</h5>
+    <div class="row mb-5">
+        <div th:each="p : ${riwayat}" th:if="${p.status == 'MENUNGGU' || p.status == 'DISETUJUI'}" class="col-md-4 mb-4">
+            <div class="card card-custom shadow-sm p-4 session-active-card h-100">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="fw-bold text-primary mb-0" th:text="${p.namaGuru}">Nama Guru</h5>
+                    <span th:text="${p.status}"
+                          th:classappend="${p.status == 'DISETUJUI' ? 'bg-success' : 'bg-warning text-dark'}"
+                          class="badge rounded-pill" style="font-size: 0.7rem;"></span>
+                </div>
+                <p class="text-muted small mb-4" th:text="${p.mataPelajaran}">Mata Pelajaran</p>
+
+                <div th:if="${p.status == 'DISETUJUI'}">
+                    <div th:if="${p.linkZoom != null && p.linkZoom != ''}">
+                        <a th:href="${p.linkZoom}" target="_blank" class="btn btn-info w-100 text-white fw-bold mb-2 btn-rounded">🎥 Masuk Kelas Online</a>
+                    </div>
+                    <div th:unless="${p.linkZoom != null && p.linkZoom != ''}">
+                        <button class="btn btn-secondary w-100 btn-sm mb-2 disabled btn-rounded">Link belum tersedia</button>
+                    </div>
+
+                    <a th:href="'https://wa.me/' + ${p.noWhatsappGuru}" target="_blank" class="btn btn-outline-success w-100 fw-bold btn-rounded">
+                        <i class="bi bi-whatsapp"></i> Chat WhatsApp
+                    </a>
+                </div>
+
+                <div th:if="${p.status == 'MENUNGGU'}" class="text-center p-3 bg-light rounded" style="border: 1px dashed #ccc;">
+                    <small class="text-muted italic">Menunggu konfirmasi dari guru...</small>
+                </div>
+            </div>
+        </div>
+
+        <div th:if="${#lists.isEmpty(riwayat.?[status == 'MENUNGGU' || status == 'DISETUJUI'])}" class="col-12">
+            <div class="card card-custom p-5 text-center shadow-sm">
+                <p class="text-muted mb-0">Tidak ada sesi belajar aktif saat ini.</p>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="fw-bold mb-3 text-secondary">📜 Riwayat Selesai & Ulasan</h5>
+    <div class="card card-custom shadow-sm p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Guru & Mata Pelajaran</th>
+                    <th>Status Akhir</th>
+                    <th class="pe-4">Aksi / Rating</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="p : ${riwayat}" th:if="${p.status == 'SELESAI'}">
+                    <td class="ps-4">
+                        <div class="fw-bold text-dark" th:text="${p.namaGuru}"></div>
+                        <small class="text-muted" th:text="${p.mataPelajaran}"></small>
+                    </td>
+                    <td><span class="badge bg-secondary">Selesai</span></td>
+                    <td class="pe-4">
+                        <button th:if="${p.rating == null}" class="btn btn-warning btn-sm fw-bold px-3 btn-rounded shadow-sm"
+                                data-bs-toggle="modal" th:data-bs-target="'#rateModal' + ${p.id}">⭐ Beri Rating</button>
+
+                        <div th:if="${p.rating != null}">
+                            <span class="fw-bold text-warning" th:text="'⭐ ' + ${p.rating}"></span>
+                            <div class="small text-muted italic" th:text="${p.ulasan}"></div>
+                        </div>
+                    </td>
+
+                    <div class="modal fade" th:id="'rateModal' + ${p.id}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                                <div class="modal-header border-0 pb-0">
+                                    <h5 class="fw-bold text-center w-100">⭐ Rating Pengalaman Belajar</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form th:action="@{'/rate-booking/' + ${p.id}}" method="post">
+                                    <div class="modal-body p-4 text-center">
+                                        <p class="text-muted small mb-4">Ulasan Anda sangat membantu guru meningkatkan kualitas pengajaran.</p>
+
+                                        <div class="mb-3">
+                                            <label class="fw-bold small mb-2 d-block text-start">Pilih Bintang</label>
+                                            <select name="rating" class="form-select border-primary" style="border-radius: 10px;" required>
+                                                <option value="5">⭐⭐⭐⭐⭐ (Sangat Puas)</option>
+                                                <option value="4">⭐⭐⭐⭐ (Puas)</option>
+                                                <option value="3">⭐⭐⭐ (Cukup)</option>
+                                                <option value="2">⭐⭐ (Kurang)</option>
+                                                <option value="1">⭐ (Kecewa)</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="fw-bold small mb-2 d-block text-start">Tulis Ulasan</label>
+                                            <textarea name="ulasan" class="form-control border-primary" rows="3"
+                                                      placeholder="Apa yang paling kamu suka dari guru ini?"
+                                                      style="border-radius: 10px;" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-0 p-4">
+                                        <button type="submit" class="btn btn-primary w-100 fw-bold btn-rounded py-2 shadow">Kirim Rating & Selesai</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </tr>
+                <tr th:if="${#lists.isEmpty(riwayat.?[status == 'SELESAI'])}">
+                    <td colspan="3" class="text-center py-5 text-muted">Belum ada riwayat pertemuan yang selesai.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
