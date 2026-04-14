@@ -193,4 +193,8 @@ public class UserController {
         session.invalidate();
         return "redirect:/login";
     }
+    @GetMapping("/")
+    public String index() {
+        return "index";
+    }
 }
