@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <title>Dashboard Guru - LES-IN</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
         .card-custom { border-radius: 15px; border: none; }
         .bg-guru { background-color: #f8f9fa; min-height: 100vh; }
         .profile-img-dash { width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #0d6efd; }
         .table-hover tbody tr:hover { background-color: rgba(13, 110, 253, 0.05); }
+        .badge-status { font-size: 0.8rem; padding: 0.5em 0.8em; }
     </style>
 </head>
 <body class="bg-guru">
@@ -24,85 +26,117 @@
 </nav>
 
 <div class="container">
+    <!-- Header Section -->
     <div class="row mb-4 align-items-center">
         <div class="col-md-1 text-center text-md-start">
             <img th:src="${user.fotoUrl}" class="profile-img-dash shadow-sm" alt="Profile">
         </div>
         <div class="col-md-7">
             <h2 class="fw-bold mb-0">Selamat Datang, <span th:text="${user.nama}">Guru</span>!</h2>
-            <p class="text-muted mb-0">Kelola pesanan murid dan atur link pertemuan kelas.</p>
-        </div>
-        <div class="col-md-4 text-end">
-            <button class="btn btn-primary fw-bold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#editProfileModal">⚙️ Edit Profil</button>
+            <p class="text-muted mb-0">Tinjau permintaan les dari murid dan kelola sesi aktif Anda.</p>
         </div>
     </div>
 
+    <!-- Navigasi Menu Fitur -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card card-custom shadow-sm border-0">
+                <div class="card-body d-flex gap-3 bg-white" style="border-radius: 15px;">
+                    <a href="/dashboard-guru" class="btn btn-primary fw-bold btn-sm px-4">
+                        <i class="bi bi-speedometer2 me-1"></i> Ringkasan Sesi
+                    </a>
+                    <a href="/pengaturan-jadwal" class="btn btn-outline-primary fw-bold btn-sm px-4">
+                        <i class="bi bi-calendar-week me-1"></i> Atur Jadwal Mengajar Tetap
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistik -->
     <div class="row mb-4">
         <div class="col-md-4">
-            <div class="card card-custom shadow-sm p-3 border-start border-primary border-5 text-center">
-                <h6 class="text-muted small fw-bold">PESANAN BARU</h6>
+            <div class="card card-custom shadow-sm p-3 border-start border-primary border-5 text-center bg-white">
+                <h6 class="text-muted small fw-bold">PERMINTAAN BARU</h6>
                 <h3 class="fw-bold text-primary" th:text="${notif}">0</h3>
             </div>
         </div>
     </div>
 
-    <div class="card card-custom shadow-sm p-4 mt-4">
-        <h4 class="fw-bold mb-4 text-primary">📂 Manajemen Sesi Aktif</h4>
+    <!-- Tabel Manajemen Sesi Aktif -->
+    <div class="card card-custom shadow-sm p-4 bg-white">
+        <h4 class="fw-bold mb-4 text-primary"><i class="bi bi-calendar-check me-2"></i>Manajemen Sesi Aktif</h4>
         <div class="table-responsive">
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                 <tr>
                     <th>Nama Murid</th>
+                    <th>Jadwal Pilihan Murid</th>
                     <th>Status</th>
-                    <th>Aksi / Link Pertemuan</th>
+                    <th>Aksi</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:each="pesan : ${daftarPesanan}" th:if="${pesan.status == 'MENUNGGU' || pesan.status == 'DISETUJUI'}">
-                    <td class="fw-bold text-primary" th:text="${pesan.namaMurid}">Murid</td>
+                    <td>
+                        <div class="fw-bold text-dark" th:text="${pesan.namaMurid}">Murid</div>
+                        <small class="text-muted" th:text="${pesan.mataPelajaran}">Mata Pelajaran</small>
+                    </td>
+                    <td>
+                        <div class="badge bg-light text-primary border border-primary p-2">
+                            <i class="bi bi-clock me-1"></i>
+                            <span th:text="${pesan.hariLes + ', ' + pesan.jamLes}">Senin, 14:00</span>
+                        </div>
+                    </td>
                     <td>
                         <span th:text="${pesan.status}"
                               th:classappend="${pesan.status == 'DISETUJUI' ? 'bg-success' : 'bg-warning text-dark'}"
-                              class="badge">STATUS</span>
+                              class="badge badge-status">STATUS</span>
                     </td>
                     <td>
+                        <!-- Aksi untuk Pesanan Baru (MENUNGGU) -->
                         <div th:if="${pesan.status == 'MENUNGGU'}" class="d-flex gap-2">
                             <form th:action="@{'/konfirmasi-booking/' + ${pesan.id} + '/DISETUJUI'}" method="post">
-                                <button type="submit" class="btn btn-success btn-sm fw-bold">Terima</button>
+                                <button type="submit" class="btn btn-success btn-sm fw-bold">Terima Jadwal</button>
                             </form>
                             <form th:action="@{'/konfirmasi-booking/' + ${pesan.id} + '/DITOLAK'}" method="post">
-                                <button type="submit" class="btn btn-outline-danger btn-sm">Tolak</button>
+                                <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">Tolak</button>
                             </form>
                         </div>
 
+                        <!-- Aksi untuk Sesi Berjalan (DISETUJUI) -->
                         <div th:if="${pesan.status == 'DISETUJUI'}" class="d-flex gap-2">
-                            <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" th:data-bs-target="'#linkModal' + ${pesan.id}">
-                                <span th:text="${pesan.linkZoom == null || pesan.linkZoom == '' ? '🎥 + Link Zoom' : '🎥 Edit Link'}"></span>
+                            <button type="button" class="btn btn-primary btn-sm fw-bold"
+                                    data-bs-toggle="modal" th:data-bs-target="'#linkModal' + ${pesan.id}">
+                                <i class="bi bi-camera-video me-1"></i> Link Zoom
                             </button>
-
                             <form th:action="@{'/selesaikan-sesi/' + ${pesan.id}}" method="post">
-                                <button type="submit" class="btn btn-dark btn-sm fw-bold" onclick="return confirm('Selesaikan seluruh sesi les ini?')">✅ Selesai</button>
+                                <button type="submit" class="btn btn-dark btn-sm fw-bold"
+                                        onclick="return confirm('Apakah sesi les ini sudah benar-benar selesai?')">
+                                    Selesai
+                                </button>
                             </form>
                         </div>
                     </td>
 
+                    <!-- Modal Input Link Zoom -->
                     <div class="modal fade" th:id="'linkModal' + ${pesan.id}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
                                 <div class="modal-header border-0 pb-0">
-                                    <h5 class="fw-bold">Input Link Kelas</h5>
+                                    <h5 class="fw-bold">Kirim Link Pertemuan</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <form th:action="@{'/isi-link-zoom/' + ${pesan.id}}" method="post">
                                     <div class="modal-body p-4">
                                         <div class="mb-3">
-                                            <label class="fw-bold small mb-1">Link Pertemuan (Zoom/Meet)</label>
-                                            <input type="url" name="linkZoom" th:value="${pesan.linkZoom}" class="form-control" placeholder="https://zoom.us/j/..." required>
-                                            <small class="text-muted">Link akan muncul di dashboard murid.</small>
+                                            <label class="fw-bold small mb-1 text-muted">Link Zoom / Google Meet</label>
+                                            <input type="url" name="linkZoom" th:value="${pesan.linkZoom}"
+                                                   class="form-control" placeholder="https://..." required>
                                         </div>
                                     </div>
-                                    <div class="modal-footer border-0">
-                                        <button type="submit" class="btn btn-primary w-100 fw-bold">Simpan Link</button>
+                                    <div class="modal-footer border-0 p-4">
+                                        <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">Simpan & Kirim</button>
                                     </div>
                                 </form>
                             </div>
@@ -114,54 +148,29 @@
         </div>
     </div>
 
-    <div class="card card-custom shadow-sm p-4 mt-5 bg-white border-0">
-        <h5 class="fw-bold mb-3 text-secondary">📜 Riwayat Pertemuan Selesai</h5>
+    <!-- Riwayat Selesai -->
+    <div class="card card-custom shadow-sm p-4 mt-5 bg-white">
+        <h5 class="fw-bold mb-3 text-secondary"><i class="bi bi-clock-history me-2"></i>Riwayat Selesai & Rating</h5>
         <div class="table-responsive">
             <table class="table table-sm align-middle">
                 <thead class="table-light">
                 <tr>
                     <th>Murid</th>
-                    <th>Status Akhir</th>
+                    <th>Status</th>
                     <th>Rating & Ulasan</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:each="p : ${daftarPesanan}" th:if="${p.status == 'SELESAI' || p.status == 'DITOLAK'}">
                     <td th:text="${p.namaMurid}"></td>
-                    <td><span th:text="${p.status}" class="badge bg-secondary"></span></td>
+                    <td><span th:text="${p.status}" class="badge bg-secondary p-2"></span></td>
                     <td>
                         <span class="text-warning fw-bold" th:text="${p.rating != null ? '⭐ ' + p.rating : '-'}"></span>
                         <small class="text-muted d-block" th:text="${p.ulasan}"></small>
                     </td>
                 </tr>
-                <tr th:if="${#lists.isEmpty(daftarPesanan.?[status == 'SELESAI' || status == 'DITOLAK'])}">
-                    <td colspan="3" class="text-center py-3 text-muted small">Belum ada riwayat pertemuan.</td>
-                </tr>
                 </tbody>
             </table>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="editProfileModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold">Update Profil</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form th:action="@{/update-profile}" method="post" enctype="multipart/form-data">
-                <div class="modal-body p-4">
-                    <div class="mb-2"><label class="small fw-bold">Nama</label><input type="text" name="nama" th:value="${user.nama}" class="form-control" required></div>
-                    <div class="mb-2"><label class="small fw-bold text-primary">Upload Foto Baru</label><input type="file" name="file" class="form-control" accept="image/*"></div>
-                    <div class="mb-2"><label class="small fw-bold">WhatsApp</label><input type="text" name="noWhatsapp" th:value="${user.noWhatsapp}" class="form-control" required></div>
-                    <div class="mb-2"><label class="small fw-bold">Mapel</label><input type="text" name="mataPelajaran" th:value="${user.mataPelajaran}" class="form-control" required></div>
-                    <div class="mb-3"><label class="small fw-bold">Bio</label><textarea name="bio" class="form-control" rows="3" th:text="${user.bio}"></textarea></div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">Simpan & Upload</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>

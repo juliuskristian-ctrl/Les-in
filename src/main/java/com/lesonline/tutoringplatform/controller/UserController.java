@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -24,44 +25,52 @@ public class UserController {
 
     private final String UPLOAD_DIR = System.getProperty("user.dir") + "/src/main/resources/static/uploads/";
 
-    @GetMapping("/register")
-    public String showRegistrationForm(Model model) {
-        model.addAttribute("user", new User());
-        return "register";
+    @GetMapping("/")
+    public String index() {
+        return "index";
     }
 
-    @PostMapping("/register")
-    public String registerUser(@ModelAttribute("user") User user) {
-        if (user.getFotoUrl() == null || user.getFotoUrl().isEmpty()) {
-            user.setFotoUrl("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
-        }
-        userRepository.save(user);
-        return "redirect:/login?registered";
-    }
+    // --- FITUR AUTENTIKASI ---
 
     @GetMapping("/login")
-    public String showLoginForm() { return "login"; }
+    public String showLoginForm() {
+        return "login";
+    }
 
     @PostMapping("/login")
     public String loginUser(@RequestParam String email, @RequestParam String password, HttpSession session, Model model) {
         Optional<User> user = userRepository.findByEmailAndPassword(email, password);
         if (user.isPresent()) {
             session.setAttribute("loggedInUser", user.get());
+            // Redirect sesuai role
             return user.get().getRole().equals("GURU") ? "redirect:/dashboard-guru" : "redirect:/dashboard-murid";
         }
         model.addAttribute("error", "Email atau Password salah!");
         return "login";
     }
 
-    @GetMapping("/dashboard-murid")
-    public String dashboardMurid(HttpSession session, Model model) {
-        User loggedInUser = (User) session.getAttribute("loggedInUser");
-        if (loggedInUser == null) return "redirect:/login";
+    @GetMapping("/logout")
+    public String logout(HttpSession session) {
+        session.invalidate();
+        return "redirect:/login";
+    }
 
+    // --- FITUR DASHBOARD MURID ---
+
+    // FIX: Menambahkan mapping yang hilang untuk menampilkan dashboard-murid.html
+    @GetMapping("/dashboard-murid")
+    public String showDashboardMurid(HttpSession session, Model model) {
+        User loggedInUser = (User) session.getAttribute("loggedInUser");
+        if (loggedInUser == null || !loggedInUser.getRole().equals("MURID")) {
+            return "redirect:/login";
+        }
+
+        // Ambil riwayat untuk ditampilkan di dashboard murid
         List<Booking> riwayat = bookingRepository.findByIdMurid(loggedInUser.getId());
+
         model.addAttribute("user", loggedInUser);
         model.addAttribute("riwayat", riwayat);
-        return "dashboard-murid";
+        return "dashboard-murid"; // Mengacu pada dashboard-murid.html
     }
 
     @GetMapping("/guru")
@@ -76,22 +85,51 @@ public class UserController {
             daftarGuru = userRepository.findByRole("GURU");
         }
 
+        List<Booking> riwayatPesanan = bookingRepository.findByIdMurid(loggedInUser.getId());
+
         model.addAttribute("user", loggedInUser);
         model.addAttribute("daftarGuru", daftarGuru);
+        model.addAttribute("riwayat", riwayatPesanan);
         model.addAttribute("search", search);
         return "daftar-guru";
     }
 
     @PostMapping("/pesan-guru/{id}")
-    public String pesanGuru(@PathVariable Long id, HttpSession session) {
+    public String pesanGuru(
+            @PathVariable Long id,
+            @RequestParam String hariLes,
+            @RequestParam String jamLes,
+            HttpSession session) {
+
         User murid = (User) session.getAttribute("loggedInUser");
         User guru = userRepository.findById(id).orElse(null);
 
         if (murid != null && guru != null) {
+            try {
+                LocalTime waktuPilihanMurid = LocalTime.parse(jamLes);
+                String jadwal = guru.getJadwalTetap();
+
+                String jamRange = jadwal.substring(jadwal.indexOf("(") + 1, jadwal.indexOf(")"));
+                String[] parts = jamRange.split(" - ");
+
+                LocalTime jamMulaiGuru = LocalTime.parse(parts[0]);
+                LocalTime jamSelesaiGuru = LocalTime.parse(parts[1]);
+
+                if (waktuPilihanMurid.isBefore(jamMulaiGuru) || waktuPilihanMurid.isAfter(jamSelesaiGuru)) {
+                    return "redirect:/guru?errorJam";
+                }
+
+                if (!jadwal.contains(hariLes)) {
+                    return "redirect:/guru?errorJam";
+                }
+
+            } catch (Exception e) {
+                return "redirect:/guru?errorJadwalBelumSiap";
+            }
+
             Optional<Booking> existing = bookingRepository.findByIdMuridAndIdGuruAndStatusIn(
                     murid.getId(), guru.getId(), Arrays.asList("MENUNGGU", "DISETUJUI")
             );
-
             if (existing.isPresent()) return "redirect:/guru?errorDuplikat";
 
             Booking b = new Booking();
@@ -101,11 +139,16 @@ public class UserController {
             b.setNamaGuru(guru.getNama());
             b.setMataPelajaran(guru.getMataPelajaran());
             b.setNoWhatsappGuru(guru.getNoWhatsapp());
+            b.setHariLes(hariLes);
+            b.setJamLes(LocalTime.parse(jamLes));
+            b.setStatus("MENUNGGU");
+
             bookingRepository.save(b);
         }
-        return "redirect:/dashboard-murid?success";
+        return "redirect:/dashboard-murid?success"; // Diarahkan ke dashboard setelah pesan
     }
 
+    // Method untuk menangani rating dari dashboard murid
     @PostMapping("/rate-booking/{id}")
     public String rateBooking(@PathVariable Long id, @RequestParam Integer rating, @RequestParam String ulasan) {
         bookingRepository.findById(id).ifPresent(b -> {
@@ -116,6 +159,8 @@ public class UserController {
         });
         return "redirect:/dashboard-murid?rated";
     }
+
+    // --- FITUR GURU ---
 
     @GetMapping("/dashboard-guru")
     public String showDashboardGuru(HttpSession session, Model model) {
@@ -129,6 +174,33 @@ public class UserController {
         model.addAttribute("daftarPesanan", listPesanan);
         model.addAttribute("notif", jumlahMenunggu);
         return "dashboard-guru";
+    }
+
+    @GetMapping("/pengaturan-jadwal")
+    public String pengaturanJadwal(HttpSession session, Model model) {
+        User currentUser = (User) session.getAttribute("loggedInUser");
+        if (currentUser == null || !currentUser.getRole().equals("GURU")) return "redirect:/login";
+        model.addAttribute("user", currentUser);
+        return "pengaturan-jadwal";
+    }
+
+    @PostMapping("/simpan-jadwal-tetap")
+    public String simpanJadwalTetap(
+            @RequestParam(value = "hariTerpilih", required = false) List<String> hariTerpilih,
+            @RequestParam String jamMulai,
+            @RequestParam String jamSelesai,
+            HttpSession session) {
+
+        User currentUser = (User) session.getAttribute("loggedInUser");
+        if (currentUser != null && hariTerpilih != null && !hariTerpilih.isEmpty()) {
+            String hariString = String.join(", ", hariTerpilih);
+            String jadwalFinal = hariString + " (" + jamMulai + " - " + jamSelesai + ")";
+
+            currentUser.setJadwalTetap(jadwalFinal);
+            userRepository.save(currentUser);
+            session.setAttribute("loggedInUser", currentUser);
+        }
+        return "redirect:/pengaturan-jadwal?success";
     }
 
     @PostMapping("/konfirmasi-booking/{id}/{status}")
@@ -149,7 +221,6 @@ public class UserController {
         return "redirect:/dashboard-guru?linkUpdated";
     }
 
-    // FITUR BARU: GURU MENYELESAIKAN SESI SECARA KESELURUHAN
     @PostMapping("/selesaikan-sesi/{id}")
     public String selesaikanSesi(@PathVariable Long id) {
         bookingRepository.findById(id).ifPresent(b -> {
@@ -160,9 +231,7 @@ public class UserController {
     }
 
     @PostMapping("/update-profile")
-    public String updateProfile(@ModelAttribute("user") User updatedUser,
-                                @RequestParam("file") MultipartFile file,
-                                HttpSession session) {
+    public String updateProfile(@ModelAttribute("user") User updatedUser, @RequestParam("file") MultipartFile file, HttpSession session) {
         User currentUser = (User) session.getAttribute("loggedInUser");
         if (currentUser != null) {
             currentUser.setNama(updatedUser.getNama());
@@ -178,23 +247,11 @@ public class UserController {
                     Path filePath = pathDir.resolve(fileName);
                     Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
                     currentUser.setFotoUrl("/uploads/" + fileName);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                } catch (IOException e) { e.printStackTrace(); }
             }
             userRepository.save(currentUser);
             session.setAttribute("loggedInUser", currentUser);
         }
         return "redirect:/dashboard-guru?updated";
-    }
-
-    @GetMapping("/logout")
-    public String logout(HttpSession session) {
-        session.invalidate();
-        return "redirect:/login";
-    }
-    @GetMapping("/")
-    public String index() {
-        return "index";
     }
 }

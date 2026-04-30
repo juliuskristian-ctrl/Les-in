@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Atur Jadwal - LES-IN</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .card-custom { border-radius: 15px; border: none; }
+        .day-btn { cursor: pointer; }
+        .day-checkbox { display: none; }
+        .day-label {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            border: 2px solid #0d6efd;
+            border-radius: 10px;
+            color: #0d6efd;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .day-checkbox:checked + .day-label {
+            background-color: #0d6efd;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/dashboard-guru">LES-IN <small class="fw-normal">| Pengaturan Jadwal</small></a>
+        <a href="/dashboard-guru" class="btn btn-light btn-sm fw-bold">Kembali ke Dashboard</a>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card card-custom shadow-sm p-4 bg-white">
+                <h4 class="fw-bold text-primary mb-4"><i class="bi bi-clock-history me-2"></i>Pilih Jadwal Mengajar Tetap</h4>
+
+                <form th:action="@{/simpan-jadwal-tetap}" method="post">
+                    <!-- Pilihan Hari -->
+                    <div class="mb-4">
+                        <label class="fw-bold mb-3 d-block">Pilih Hari Aktif Mengajar:</label>
+                        <div class="d-flex flex-wrap justify-content-start">
+                            <div th:each="day : ${ {'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'} }">
+                                <input type="checkbox" name="hariTerpilih" th:id="${day}" th:value="${day}" class="day-checkbox">
+                                <label th:for="${day}" class="day-label" th:text="${day}"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pilihan Jam -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="fw-bold small mb-2">Jam Mulai</label>
+                            <input type="time" name="jamMulai" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="fw-bold small mb-2">Jam Selesai</label>
+                            <input type="time" name="jamSelesai" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info small border-0 shadow-sm" style="border-radius: 10px;">
+                        <i class="bi bi-info-circle me-2"></i> Jadwal ini akan ditampilkan di profil Anda agar murid bisa menyesuaikan waktu mereka.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-3 shadow" style="border-radius: 12px;">
+                        <i class="bi bi-check-circle me-2"></i> Simpan Jadwal Tetap
+                    </button>
+                </form>
+
+                <!-- Menampilkan Jadwal Saat Ini -->
+                <div class="mt-4 pt-4 border-top">
+                    <p class="text-muted small mb-1">Jadwal Anda saat ini:</p>
+                    <strong class="text-dark" th:text="${user.jadwalTetap ?: 'Belum diatur'}"></strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

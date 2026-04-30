@@ -4,78 +4,165 @@
     <meta charset="UTF-8">
     <title>Cari Guru - LES-IN</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
         .card-guru { border-radius: 15px; border: none; transition: 0.3s; overflow: hidden; }
         .card-guru:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1)!important; }
-        .img-guru-card { height: 200px; object-fit: cover; width: 100%; }
+        .img-guru-card { height: 220px; object-fit: cover; width: 100%; }
+        .schedule-info { background-color: #f0f7ff; border-left: 4px solid #0d6efd; border-radius: 8px; }
+        .badge-custom { font-size: 0.75rem; padding: 0.5em 0.8em; }
     </style>
 </head>
 <body class="bg-light">
 
 <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="/guru">LES-IN</a>
+        <a class="navbar-brand fw-bold" href="/dashboard-murid">LES-IN</a>
         <div class="d-flex align-items-center gap-3">
             <span class="text-white small" th:text="${user != null ? 'Halo, ' + user.nama : 'Halo'}">User</span>
-            <a href="/logout" class="btn btn-danger btn-sm fw-bold">Logout</a>
+            <a href="/logout" class="btn btn-danger btn-sm fw-bold shadow-sm">Logout</a>
         </div>
     </div>
 </nav>
 
 <div class="container">
-    <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show">
-        ✅ Pesanan berhasil dikirim!
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    <div th:if="${param.errorDuplikat}" class="alert alert-danger alert-dismissible fade show">
-        ⚠️ Anda sudah memiliki pesanan aktif untuk guru ini.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <!-- Section Notifikasi Alert -->
+    <div class="mb-4">
+        <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <strong>Berhasil!</strong> Pesanan Anda telah dikirim ke guru.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div th:if="${param.errorJam}" class="alert alert-warning alert-dismissible fade show border-0 shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Gagal Memesan:</strong> Sesuaikan kembali jam nya dengan jadwal tetap guru.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div th:if="${param.errorDuplikat}" class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+            <i class="bi bi-x-circle-fill me-2"></i> Anda sudah memiliki pesanan aktif untuk guru ini.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div th:if="${param.errorJadwalBelumSiap}" class="alert alert-secondary alert-dismissible fade show border-0 shadow-sm" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i> Guru tersebut belum mengatur jadwal tetap mengajar.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     </div>
 
-    <h3 class="fw-bold mb-4">Pilih Guru Terbaikmu</h3>
+    <h3 class="fw-bold mb-4 text-primary">Cari Guru Terbaikmu</h3>
+
+    <!-- Loop Daftar Guru -->
     <div class="row">
         <div class="col-md-4 mb-4" th:each="guru : ${daftarGuru}">
-            <div class="card h-100 shadow-sm card-guru">
+            <div class="card h-100 shadow-sm card-guru bg-white">
                 <img th:src="${guru.fotoUrl}" class="img-guru-card" alt="Foto Guru">
                 <div class="card-body p-4">
-                    <h5 class="fw-bold text-primary" th:text="${guru.nama}">Nama Guru</h5>
-                    <span class="badge bg-info text-dark mb-3" th:text="${guru.mataPelajaran}">Mapel</span>
-                    <p class="text-secondary small" th:text="${guru.bio}">Bio...</p>
-                    <form th:action="@{'/pesan-guru/' + ${guru.id}}" method="post">
-                        <button type="submit" class="btn btn-primary w-100 fw-bold">Pesan Les</button>
-                    </form>
+                    <h5 class="fw-bold text-dark mb-1" th:text="${guru.nama}">Nama Guru</h5>
+                    <span class="badge bg-info text-dark mb-3 badge-custom" th:text="${guru.mataPelajaran}">Mapel</span>
+
+                    <!-- Info Ketersediaan Guru -->
+                    <div class="schedule-info p-3 mb-3">
+                        <small class="fw-bold text-primary d-block mb-1"><i class="bi bi-calendar3"></i> Jadwal Guru:</small>
+                        <p class="small mb-0 fw-semibold text-dark"
+                           th:text="${guru.jadwalTetap != null && guru.jadwalTetap != '' ? guru.jadwalTetap : 'Jadwal belum diatur'}">
+                        </p>
+                    </div>
+
+                    <p class="text-secondary small mb-4" th:text="${#strings.abbreviate(guru.bio, 100)}"></p>
+
+                    <button type="button" class="btn btn-primary w-100 fw-bold py-2 shadow-sm"
+                            style="border-radius: 10px;"
+                            data-bs-toggle="modal" th:data-bs-target="'#pesanModal' + ${guru.id}">
+                        Pesan Sekarang
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Pesan Les -->
+            <div class="modal fade" th:id="'pesanModal' + ${guru.id}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                        <div class="modal-header border-0 pb-0">
+                            <h5 class="fw-bold"><i class="bi bi-clock me-2"></i>Pilih Waktu Belajarmu</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form th:action="@{'/pesan-guru/' + ${guru.id}}" method="post">
+                            <div class="modal-body p-4">
+                                <p class="small text-muted mb-3">Guru ini hanya mengajar pada: <br>
+                                    <strong class="text-primary" th:text="${guru.jadwalTetap}"></strong>
+                                </p>
+
+                                <div class="mb-3">
+                                    <label class="fw-bold small mb-1">Pilih Hari</label>
+                                    <select name="hariLes" class="form-select border-primary" style="border-radius: 10px;" required>
+                                        <option value="" disabled selected>-- Pilih Hari --</option>
+                                        <option value="Senin">Senin</option>
+                                        <option value="Selasa">Selasa</option>
+                                        <option value="Rabu">Rabu</option>
+                                        <option value="Kamis">Kamis</option>
+                                        <option value="Jumat">Jumat</option>
+                                        <option value="Sabtu">Sabtu</option>
+                                        <option value="Minggu">Minggu</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-bold small mb-1">Pilih Jam</label>
+                                    <input type="time" name="jamLes" class="form-control border-primary" style="border-radius: 10px;" required>
+                                </div>
+                                <div class="alert alert-info small border-0 py-2">
+                                    <i class="bi bi-info-circle me-1"></i> Sesuaikan jam pilihanmu dengan rentang jam guru di atas.
+                                </div>
+                            </div>
+                            <div class="modal-footer border-0 p-4">
+                                <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm" style="border-radius: 10px;">
+                                    Konfirmasi Pesanan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Tabel Status Pesanan Murid -->
     <div class="mt-5 pt-4 border-top">
-        <h4 class="fw-bold mb-4">📅 Status Pesanan Saya</h4>
-        <div class="card border-0 shadow-sm p-3" style="border-radius: 15px;">
-            <table class="table table-hover align-middle">
+        <h4 class="fw-bold mb-4 text-secondary"><i class="bi bi-list-check me-2"></i>Status Belajarku</h4>
+        <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 15px;">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
-                <tr><th>Guru</th><th>Mapel</th><th>Status</th><th>Aksi</th></tr>
+                <tr>
+                    <th class="ps-4">Guru</th>
+                    <th>Jadwal Terpilih</th>
+                    <th>Status</th>
+                    <th class="pe-4">Aksi</th>
+                </tr>
                 </thead>
                 <tbody>
-                <tr th:each="p : ${pesananSaya}">
-                    <td th:text="${p.namaGuru}" class="fw-bold text-primary">Guru</td>
-                    <td th:text="${p.mataPelajaran}">Mapel</td>
+                <tr th:each="p : ${riwayat}">
+                    <td class="ps-4">
+                        <span th:text="${p.namaGuru}" class="fw-bold text-primary"></span>
+                        <div class="small text-muted" th:text="${p.mataPelajaran}"></div>
+                    </td>
+                    <td>
+                        <span class="small fw-bold" th:text="${p.hariLes + ' @ ' + p.jamLes}"></span>
+                    </td>
                     <td>
                         <span th:text="${p.status}"
                               th:classappend="${p.status == 'DISETUJUI' ? 'bg-success' : (p.status == 'DITOLAK' ? 'bg-danger' : 'bg-warning text-dark')}"
-                              class="badge">STATUS</span>
+                              class="badge rounded-pill badge-custom"></span>
                     </td>
-                    <td>
+                    <td class="pe-4">
                         <a th:if="${p.status == 'DISETUJUI'}"
                            th:href="'https://wa.me/' + ${p.noWhatsappGuru}"
-                           target="_blank" class="btn btn-success btn-sm fw-bold shadow-sm">
-                            💬 Chat WA
+                           target="_blank" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm">
+                            <i class="bi bi-whatsapp me-1"></i> WhatsApp
                         </a>
-                        <span th:if="${p.status == 'MENUNGGU'}" class="text-muted small">Menunggu...</span>
+                        <span th:if="${p.status == 'MENUNGGU'}" class="text-muted small">Sedang ditinjau guru...</span>
                     </td>
                 </tr>
-                <tr th:if="${#lists.isEmpty(pesananSaya)}">
-                    <td colspan="4" class="text-center text-muted py-4">Belum ada pesanan.</td>
+                <tr th:if="${#lists.isEmpty(riwayat)}">
+                    <td colspan="4" class="text-center text-muted py-4">Anda belum memiliki riwayat pesanan les.</td>
                 </tr>
                 </tbody>
             </table>

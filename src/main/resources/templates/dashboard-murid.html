@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <title>Dashboard Murid - LES-IN</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
         .card-custom { border-radius: 15px; border: none; }
         .bg-murid { background-color: #f0f2f5; min-height: 100vh; }
         .session-active-card { border-left: 5px solid #0d6efd; transition: 0.3s; }
         .session-active-card:hover { transform: translateY(-5px); }
         .btn-rounded { border-radius: 10px; }
+        .schedule-box { background-color: #e7f1ff; color: #0d6efd; border-radius: 10px; padding: 10px; }
     </style>
 </head>
 <body class="bg-murid">
@@ -32,6 +34,7 @@
 
     <h5 class="fw-bold mb-3 text-secondary">📖 Sesi Belajar Berjalan</h5>
     <div class="row mb-5">
+        <!-- Loop Sesi Aktif -->
         <div th:each="p : ${riwayat}" th:if="${p.status == 'MENUNGGU' || p.status == 'DISETUJUI'}" class="col-md-4 mb-4">
             <div class="card card-custom shadow-sm p-4 session-active-card h-100">
                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -40,43 +43,59 @@
                           th:classappend="${p.status == 'DISETUJUI' ? 'bg-success' : 'bg-warning text-dark'}"
                           class="badge rounded-pill" style="font-size: 0.7rem;"></span>
                 </div>
-                <p class="text-muted small mb-4" th:text="${p.mataPelajaran}">Mata Pelajaran</p>
+                <p class="text-muted small mb-3" th:text="${p.mataPelajaran}">Mata Pelajaran</p>
+
+                <!-- FITUR JADWAL: Hanya tampil jika status DISETUJUI -->
+                <div th:if="${p.status == 'DISETUJUI'}" class="schedule-box mb-3 shadow-sm">
+                    <div class="small fw-bold"><i class="bi bi-calendar3"></i> Jadwal Les:</div>
+                    <div class="fw-bold" th:text="${p.hariLes + ', ' + p.jamLes + ' WIB'}">Senin, 14:00 WIB</div>
+                </div>
 
                 <div th:if="${p.status == 'DISETUJUI'}">
+                    <!-- Tombol Masuk Kelas -->
                     <div th:if="${p.linkZoom != null && p.linkZoom != ''}">
-                        <a th:href="${p.linkZoom}" target="_blank" class="btn btn-info w-100 text-white fw-bold mb-2 btn-rounded">🎥 Masuk Kelas Online</a>
+                        <a th:href="${p.linkZoom}" target="_blank" class="btn btn-info w-100 text-white fw-bold mb-2 btn-rounded shadow-sm">
+                            <i class="bi bi-camera-video-fill"></i> Masuk Kelas Online
+                        </a>
                     </div>
                     <div th:unless="${p.linkZoom != null && p.linkZoom != ''}">
                         <button class="btn btn-secondary w-100 btn-sm mb-2 disabled btn-rounded">Link belum tersedia</button>
                     </div>
 
+                    <!-- Tombol Chat WA -->
                     <a th:href="'https://wa.me/' + ${p.noWhatsappGuru}" target="_blank" class="btn btn-outline-success w-100 fw-bold btn-rounded">
-                        <i class="bi bi-whatsapp"></i> Chat WhatsApp
+                        <i class="bi bi-whatsapp"></i> Chat WhatsApp Guru
                     </a>
                 </div>
 
+                <!-- Tampilan jika masih Menunggu -->
                 <div th:if="${p.status == 'MENUNGGU'}" class="text-center p-3 bg-light rounded" style="border: 1px dashed #ccc;">
-                    <small class="text-muted italic">Menunggu konfirmasi dari guru...</small>
+                    <i class="bi bi-hourglass-split d-block mb-1 text-warning"></i>
+                    <small class="text-muted italic">Menunggu konfirmasi jadwal dari guru...</small>
                 </div>
             </div>
         </div>
 
-        <div th:if="${#lists.isEmpty(riwayat.?[status == 'MENUNGGU' || status == 'DISETUJUI'])}" class="col-12">
-            <div class="card card-custom p-5 text-center shadow-sm">
-                <p class="text-muted mb-0">Tidak ada sesi belajar aktif saat ini.</p>
+        <!-- Tampilan jika kosong -->
+        <div th:if="${#lists.isEmpty(riwayat.?[status == 'MENUNGGU' || status == 'DISETUJUI'])}" class="col-12 text-center">
+            <div class="card card-custom p-5 shadow-sm bg-white">
+                <i class="bi bi-journal-x display-4 text-muted mb-3"></i>
+                <p class="text-muted mb-0">Kamu belum memiliki sesi belajar aktif.</p>
             </div>
         </div>
     </div>
 
+    <!-- Tabel Riwayat -->
     <h5 class="fw-bold mb-3 text-secondary">📜 Riwayat Selesai & Ulasan</h5>
-    <div class="card card-custom shadow-sm p-0 overflow-hidden">
+    <div class="card card-custom shadow-sm p-0 overflow-hidden bg-white">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                 <tr>
                     <th class="ps-4">Guru & Mata Pelajaran</th>
-                    <th>Status Akhir</th>
-                    <th class="pe-4">Aksi / Rating</th>
+                    <th>Jadwal Selesai</th>
+                    <th>Status</th>
+                    <th class="pe-4">Rating / Ulasan</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -85,17 +104,23 @@
                         <div class="fw-bold text-dark" th:text="${p.namaGuru}"></div>
                         <small class="text-muted" th:text="${p.mataPelajaran}"></small>
                     </td>
+                    <td>
+                        <small class="text-muted" th:text="${p.hariLes + ', ' + p.jamLes}"></small>
+                    </td>
                     <td><span class="badge bg-secondary">Selesai</span></td>
                     <td class="pe-4">
+                        <!-- Tombol Beri Rating -->
                         <button th:if="${p.rating == null}" class="btn btn-warning btn-sm fw-bold px-3 btn-rounded shadow-sm"
                                 data-bs-toggle="modal" th:data-bs-target="'#rateModal' + ${p.id}">⭐ Beri Rating</button>
 
+                        <!-- Tampilan Rating Jika Sudah Ada -->
                         <div th:if="${p.rating != null}">
                             <span class="fw-bold text-warning" th:text="'⭐ ' + ${p.rating}"></span>
                             <div class="small text-muted italic" th:text="${p.ulasan}"></div>
                         </div>
                     </td>
 
+                    <!-- Modal Rating -->
                     <div class="modal fade" th:id="'rateModal' + ${p.id}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
@@ -105,28 +130,28 @@
                                 </div>
                                 <form th:action="@{'/rate-booking/' + ${p.id}}" method="post">
                                     <div class="modal-body p-4 text-center">
-                                        <p class="text-muted small mb-4">Ulasan Anda sangat membantu guru meningkatkan kualitas pengajaran.</p>
+                                        <p class="text-muted small mb-4">Bagaimana sesi belajarmu dengan <strong th:text="${p.namaGuru}"></strong>?</p>
 
-                                        <div class="mb-3">
-                                            <label class="fw-bold small mb-2 d-block text-start">Pilih Bintang</label>
+                                        <div class="mb-3 text-start">
+                                            <label class="fw-bold small mb-2">Pilih Skor Bintang</label>
                                             <select name="rating" class="form-select border-primary" style="border-radius: 10px;" required>
-                                                <option value="5">⭐⭐⭐⭐⭐ (Sangat Puas)</option>
-                                                <option value="4">⭐⭐⭐⭐ (Puas)</option>
+                                                <option value="5">⭐⭐⭐⭐⭐ (Sangat Bagus)</option>
+                                                <option value="4">⭐⭐⭐⭐ (Bagus)</option>
                                                 <option value="3">⭐⭐⭐ (Cukup)</option>
                                                 <option value="2">⭐⭐ (Kurang)</option>
-                                                <option value="1">⭐ (Kecewa)</option>
+                                                <option value="1">⭐ (Buruk)</option>
                                             </select>
                                         </div>
 
-                                        <div class="mb-3">
-                                            <label class="fw-bold small mb-2 d-block text-start">Tulis Ulasan</label>
+                                        <div class="mb-3 text-start">
+                                            <label class="fw-bold small mb-2">Ceritakan Pengalamanmu</label>
                                             <textarea name="ulasan" class="form-control border-primary" rows="3"
-                                                      placeholder="Apa yang paling kamu suka dari guru ini?"
+                                                      placeholder="Contoh: Penjelasan guru sangat mudah dimengerti!"
                                                       style="border-radius: 10px;" required></textarea>
                                         </div>
                                     </div>
                                     <div class="modal-footer border-0 p-4">
-                                        <button type="submit" class="btn btn-primary w-100 fw-bold btn-rounded py-2 shadow">Kirim Rating & Selesai</button>
+                                        <button type="submit" class="btn btn-primary w-100 fw-bold btn-rounded py-2 shadow">Kirim Ulasan</button>
                                     </div>
                                 </form>
                             </div>
@@ -134,7 +159,7 @@
                     </div>
                 </tr>
                 <tr th:if="${#lists.isEmpty(riwayat.?[status == 'SELESAI'])}">
-                    <td colspan="3" class="text-center py-5 text-muted">Belum ada riwayat pertemuan yang selesai.</td>
+                    <td colspan="4" class="text-center py-5 text-muted">Belum ada riwayat pertemuan yang selesai.</td>
                 </tr>
                 </tbody>
             </table>
